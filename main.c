@@ -48,9 +48,14 @@
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
+#include "app_scheduler.h"
 
 
 APP_TIMER_DEF(m_led_a_timer_id);
+
+// Scheduler settings
+#define SCHED_MAX_EVENT_DATA_SIZE   MAX(sizeof(nrf_drv_gpiote_pin_t), APP_TIMER_SCHED_EVENT_DATA_SIZE)
+#define SCHED_QUEUE_SIZE            10
 
 
 /**@brief Function to determine weather currently executing in main or interrupt context.
@@ -115,6 +120,16 @@ static void button_handler(nrf_drv_gpiote_pin_t pin)
 }
 
 
+/**@brief Button handler function to be called by the scheduler.
+ */
+void button_scheduler_event_handler(void *p_event_data, uint16_t event_size)
+{
+    // In this case, p_event_data is a pointer to a nrf_drv_gpiote_pin_t that represents
+    // the pin number of the button pressed. The size is constant, so it is ignored.
+    button_handler(*((nrf_drv_gpiote_pin_t*)p_event_data));
+}
+
+
 /**@brief Button event handler.
  */
 static void gpiote_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
@@ -123,7 +138,7 @@ static void gpiote_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t
     // separate function as it makes it easier to demonstrate the scheduler with less modifications
     // to the code later in the tutorial.
 
-    button_handler(pin);
+    app_sched_event_put(&pin, sizeof(pin), button_scheduler_event_handler);
 }
 
 
@@ -229,11 +244,14 @@ int main(void)
     gpio_init();
     timer_init();
 
+    APP_SCHED_INIT(SCHED_MAX_EVENT_DATA_SIZE, SCHED_QUEUE_SIZE);
+
     NRF_LOG_INFO("Scheduler tutorial example started.");
 
     // Enter main loop.
     while (true)
     {
+        app_sched_execute();
         __WFI();
     }
 }
