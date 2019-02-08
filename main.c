@@ -53,41 +53,19 @@
 APP_TIMER_DEF(m_led_a_timer_id);
 
 
-/**@brief Function to determine weather currently executing in main or interrupt context.
-
- * @retval  true    CPU is currently executing in main context.
- * @retval  false   CPU is currently executing in interrupt context.
- */
-static bool is_main_context ( void )
-{
-    static const uint8_t ISR_NUMBER_THREAD_MODE = 0;
-
-    uint8_t isr_number =__get_IPSR();
-
-    if ((isr_number ) == ISR_NUMBER_THREAD_MODE)
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
-
 /**@brief Button event handler.
  *
  * @details This function is responsible for starting or stopping toggling of LED 1 based on button
  *          presses.
  *
- *          Print a log line indicating weather executing in main or interrupt context.
+ *          Print a log line indicating weather executing in thread/main or interrupt handler mode.
  *
  */
 static void button_handler(nrf_drv_gpiote_pin_t pin)
 {
     uint32_t err_code;
 
-    // Handle button presses.
+    // Handle button press.
     switch (pin)
     {
     case BUTTON_1:
@@ -104,13 +82,14 @@ static void button_handler(nrf_drv_gpiote_pin_t pin)
         break;
     }
 
-    if (is_main_context())
+    // Log execution mode.
+    if (current_int_priority_get() == APP_IRQ_PRIORITY_THREAD)
     {
-        NRF_LOG_INFO("Button handler is executing in main context.");
+        NRF_LOG_INFO("Button handler is executing in thread/main mode.");
     }
     else
     {
-        NRF_LOG_INFO("Button handler is executing in interrupt context.");
+        NRF_LOG_INFO("Button handler is executing in interrupt handler mode.");
     }
 }
 
@@ -163,19 +142,21 @@ static void gpio_init()
 
 /**@brief Timeout handler for the repeated timer used for toggling LED 1.
  *
- * @details Print a log line indicating weather executing in main or interrupt context.
+ * @details Print a log line indicating weather executing in thread/main or interrupt mode.
  */
 static void timer_handler(void * p_context)
 {
+    // Toggle LED.
     nrf_drv_gpiote_out_toggle(LED_1);
 
-    if (is_main_context())
+    // Log execution mode.
+    if (current_int_priority_get() == APP_IRQ_PRIORITY_THREAD)
     {
-        NRF_LOG_INFO("Timeout handler is executing in main context.");
+        NRF_LOG_INFO("Timeout handler is executing in thread/main mode.");
     }
     else
     {
-        NRF_LOG_INFO("Timeout handler is executing in interrupt context.");
+        NRF_LOG_INFO("Timeout handler is executing in interrupt handler mode.");
     }
 }
 
